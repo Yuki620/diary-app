@@ -4,26 +4,53 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import streamlit as st
 from google.cloud import firestore
+import requests
 from datetime import datetime, timedelta
+from langchain.llms import OpenAI
+from langchain_core.prompts import PromptTemplate
+#from config import FIREBASE_KEY_PATH, HF_TOKEN
 from utils.date_utils  import format_friendly_date
+from utils.llm_api import query_chat
 
 # Authenticate to Firestore with key
-db = firestore.Client.from_service_account_json("config/firebase-key.json")
+hf_token = st.secrets['HF_TOKEN']
+key_path = st.secrets['FIREBASE_KEY_PATH']
+db = firestore.Client.from_service_account_json(key_path)
+
 
 st.title("My Diary App")
+
 
 option = st.radio("What would you like to do?", ["New Entry", "Add Prior Entry"])
 
 if option == "New Entry":
     # Add new diary entry
-    entry = st.text_area("Write your diary entry:")
-    if st.button("Save Entry"):
+    entry = st.text_area("Enter your notes or write out what you did:")
+
+    # Save Raw entry
+    if st.button("Save Raw Entry"):
         doc_ref = db.collection("entries").document()
         doc_ref.set({
             "entry": entry,
             "date": datetime.now() # adds current date and time 
         })
-        st.success("Entry saved!")
+        st.success("Raw entry saved!")
+    
+    # Generate diary entry with LLM
+    if st.button("Generate Diary Entry"):
+        prompt = ("Write a detailed, first-person diary entry based solely on the following notes:\n" + entry)
+        generated_entry = query_chat(prompt)
+        st.write("### Generated Diary Entry")
+        st.write(generated_entry)
+
+        # option to save generated entry
+        if st.button("Save Generated Entry"):
+            doc_ref = db.collection("entries").document()
+            doc_ref.set({
+                "entry": generated_entry,
+                "date": datetime.now() # adds current date and time 
+            })
+            st.success("Generated diary entry saved!")
 elif option == "Add Prior Entry":
     entry = st.text_area("Enter the prior diary entry:")
     date_input = st.date_input("Entry Date", value=datetime.now().date()) # default is today, streamlit widget calendar picker

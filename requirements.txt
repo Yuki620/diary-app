@@ -1,2 +1,9 @@
 streamlit
 Google-cloud-firestore
+huggingface_hub
+transformers
+langchain
+langchain_community
+numpy==1.24.4
+pandas==1.5.3
+openai==0.28
